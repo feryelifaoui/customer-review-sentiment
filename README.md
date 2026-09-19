@@ -8,13 +8,13 @@
 [![Vite](https://img.shields.io/badge/Vite-6.0%2B-646CFF.svg?logo=vite&logoColor=white)](https://vitejs.dev/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-An end-to-end full-stack Artificial Intelligence solution for **Customer Review Sentiment Analysis**. Powered by a fine-tuned **DistilBERT** Transformer model, a **Flask REST API** backend, and a modern **React + Vite** web interface.
+An end-to-end full-stack Artificial Intelligence solution for **Customer Review Sentiment Analysis**. Powered by a fine-tuned **CamemBERT** Transformer model (optimized for French), a **Flask REST API** backend, and a modern **React + Vite** web interface.
 
 ---
 
 ## 🎯 Overview
 
-Understanding customer feedback at scale is vital for business success. This application allows businesses and analysts to input raw customer reviews and receive real-time sentiment predictions (**Positive**, **Neutral**, or **Negative**) along with calibrated model confidence scores and class probability distributions.
+Understanding customer feedback at scale is vital for business success. This application allows businesses and analysts to input raw customer reviews (in French) and receive real-time sentiment predictions (**Positive**, **Neutral**, or **Negative**) along with calibrated model confidence scores and class probability distributions.
 
 ---
 
@@ -22,7 +22,7 @@ Understanding customer feedback at scale is vital for business success. This app
 
 Manual processing of thousands of customer reviews is slow, subjective, and prone to human error. Legacy rule-based or simple TF-IDF approaches miss contextual nuances like negation, sarcasm, and domain-specific vocabulary.
 
-This project solves these challenges by utilizing deep contextual representations from fine-tuned **Transformers (DistilBERT)** to deliver fast, highly accurate, and automated sentiment inference.
+This project solves these challenges by utilizing deep contextual representations from a fine-tuned **CamemBERT** model — a RoBERTa-based architecture pre-trained on French text — to deliver fast, highly accurate, and automated sentiment inference.
 
 ---
 
@@ -33,20 +33,22 @@ The model is fine-tuned using a multi-class sentiment dataset of customer review
   - `0`: **Negative**
   - `1`: **Neutral**
   - `2`: **Positive**
-- **Preprocessing**: Cleaning, tokenization via `DistilBertTokenizer`, truncation, and padding (max sequence length: 128).
+- **Preprocessing**: Cleaning, tokenization via `CamembertTokenizer`, truncation, and padding (max sequence length: 128).
 - Notebook workflow and experimentation details are documented in [`notebooks/mon_notebook.ipynb`](notebooks/mon_notebook.ipynb).
 
 ---
 
 ## 🤖 Transformer Model
 
-- **Architecture**: `DistilBertForSequenceClassification`
-- **Parameters**: ~66 Million parameters (lightweight, fast inference with 95%+ of BERT performance)
-- **Layer Configuration**: 6 Transformer encoder blocks, 12 attention heads, hidden dimension of 768, GELU activation.
-- **Artifacts**: Stored in `backend/saved_model/` using Hugging Face's `safetensors` format:
+- **Architecture**: `CamembertForSequenceClassification`
+- **Base model**: [`camembert-base`](https://huggingface.co/camembert-base) — RoBERTa pre-trained on French Common Crawl
+- **Parameters**: ~110 Million parameters
+- **Layer Configuration**: 12 Transformer encoder blocks, 12 attention heads, hidden dimension of 768, GELU activation, max position embeddings: 514.
+- **Artifacts**: Stored directly in `backend/` using Hugging Face's `safetensors` format:
   - `config.json`
   - `model.safetensors`
   - `tokenizer.json`
+  - `tokenizer_config.json`
   - `label_mapping.json`
 
 ---
@@ -57,8 +59,8 @@ The model is fine-tuned using a multi-class sentiment dataset of customer review
 flowchart TD
     A["👤 User / Customer Review"] -->|Enters Text or Sample| B["💻 Web Frontend (React 19 + Vite)"]
     B -->|HTTP POST /predict| C["🐍 Flask Backend API (Port 5000)"]
-    C -->|Input String| D["🔤 DistilBERT Tokenizer"]
-    D -->|Tensors & Attention Mask| E["🤖 Fine-Tuned DistilBERT Model (PyTorch)"]
+    C -->|Input String| D["🔤 CamemBERT Tokenizer"]
+    D -->|Tensors & Attention Mask| E["🤖 Fine-Tuned CamemBERT Model (PyTorch)"]
     E -->|Logits| F["📊 Softmax Activation Function"]
     F -->|Sentiment & Probabilities| C
     C -->|JSON Response| B
@@ -66,13 +68,13 @@ flowchart TD
 ```
 
 ```text
-Customer Review Text
+Customer Review Text (French)
        │
        ▼
-Text Preprocessing & Tokenization (DistilBertTokenizer)
+Text Preprocessing & Tokenization (CamembertTokenizer)
        │
        ▼
-Transformer Inference (DistilBERT Sequence Classification)
+Transformer Inference (CamemBERT Sequence Classification)
        │
        ▼
 Softmax Layer & Probability Distribution
@@ -89,9 +91,9 @@ Web Frontend (React UI with Dynamic Visualizations)
 ## 🛠️ Technologies
 
 ### Machine Learning & NLP
-- **Python 3.12+**
+- **Python 3.10+**
 - **PyTorch**: Deep learning framework for model execution
-- **Hugging Face `transformers`**: Model loading and sequence classification
+- **Hugging Face `transformers`**: CamemBERT model loading and sequence classification
 - **NumPy**: Matrix operations and array handling
 
 ### Backend API
@@ -113,11 +115,11 @@ customer-review-sentiment/
 │   ├── app.py                   # Flask API entry point
 │   ├── model.py                 # PyTorch model loader & inference engine
 │   ├── requirements.txt         # Python dependencies
-│   └── saved_model/             # Fine-tuned DistilBERT weights & tokenizer
-│       ├── config.json
-│       ├── label_mapping.json
-│       ├── model.safetensors
-│       └── tokenizer.json
+│   ├── config.json              # CamemBERT model configuration
+│   ├── model.safetensors        # Fine-tuned model weights (~422 MB)
+│   ├── tokenizer.json           # Tokenizer vocabulary & rules
+│   ├── tokenizer_config.json    # Tokenizer metadata
+│   └── label_mapping.json       # Label ID → sentiment name mapping
 ├── frontend/
 │   ├── index.html               # Main HTML entry
 │   ├── package.json             # Frontend dependencies & scripts
@@ -195,7 +197,16 @@ npm run dev
 
 ## 📈 API Endpoint & Usage
 
-### Endpoint: `POST /predict`
+### Health Check: `GET /`
+
+```json
+{
+  "status": "ok",
+  "message": "Sentiment Analysis API is running"
+}
+```
+
+### Sentiment Prediction: `POST /predict`
 
 #### Request Header:
 `Content-Type: application/json`
@@ -203,7 +214,7 @@ npm run dev
 #### Request Body:
 ```json
 {
-  "text": "The product quality is absolutely amazing! Fast shipping too."
+  "text": "Ce produit est absolument fantastique, je suis très satisfait !"
 }
 ```
 
@@ -211,11 +222,11 @@ npm run dev
 ```json
 {
   "sentiment": "Positive",
-  "confidence": 0.9845,
+  "confidence": 0.9970,
   "probabilities": {
-    "Negative": 0.0032,
-    "Neutral": 0.0123,
-    "Positive": 0.9845
+    "Negative": 0.0017,
+    "Neutral": 0.0013,
+    "Positive": 0.9970
   }
 }
 ```
@@ -225,6 +236,7 @@ npm run dev
 ## 🖥️ Application Features
 
 - ⚡ **Real-time Sentiment Prediction**: Instant feedback upon submitting review text.
+- 🇫🇷 **French Language Optimized**: Powered by CamemBERT, pre-trained on large French corpora.
 - 🎯 **Quick Example Prompts**: Built-in sample buttons for testing Positive, Neutral, and Negative sentiments instantly.
 - 🏷️ **Dynamic Sentiment Badges**: Color-coded output (Green for Positive, Orange for Neutral, Red for Negative).
 - 📊 **Probability Bar Chart**: Visual breakdown showing percentage probabilities across all 3 sentiment categories.

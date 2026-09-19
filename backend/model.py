@@ -5,7 +5,7 @@ import torch
 import torch.nn.functional as F
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
-MODEL_DIR = "./saved_model"
+MODEL_DIR = os.path.dirname(os.path.abspath(__file__))
 MAX_LENGTH = 128
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
